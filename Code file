@@ -1,0 +1,1489 @@
+
+
+## Importing necessary libraries and data
+"""
+
+# Installing the libraries with the specified version.
+!pip install pandas==1.5.3 numpy==1.25.2 matplotlib==3.7.1 seaborn==0.13.1 scikit-learn==1.2.2 statsmodels==0.14.1 -q --user
+
+"""**Note**: *After running the above cell, kindly restart the notebook kernel and run all cells sequentially from the start again.*"""
+
+# Libraries to help with reading and manipulating data
+import pandas as pd
+import numpy as np
+
+# libaries to help with data visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Removes the limit for the number of displayed columns
+pd.set_option("display.max_columns", None)
+# Sets the limit for the number of displayed rows
+pd.set_option("display.max_rows", 200)
+# setting the precision of floating numbers to 5 decimal points
+pd.set_option("display.float_format", lambda x: "%.5f" % x)
+
+# Library to split data
+from sklearn.model_selection import train_test_split
+
+# To build model for prediction
+import statsmodels.stats.api as sms
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+import statsmodels.api as sm
+from statsmodels.tools.tools import add_constant
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import tree
+
+# To tune different models
+from sklearn.model_selection import GridSearchCV
+
+
+# To get diferent metric scores
+from sklearn.metrics import (
+    f1_score,
+    accuracy_score,
+    recall_score,
+    precision_score,
+    confusion_matrix,
+    roc_auc_score,
+    precision_recall_curve,
+    roc_curve,
+    make_scorer,
+)
+
+import warnings
+warnings.filterwarnings("ignore")
+
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+warnings.simplefilter("ignore", ConvergenceWarning)
+
+# assigning authorization from colab to drive
+from google.colab import drive
+drive.mount('/content/drive')
+
+# assigning path to fetch data file from drive
+data = pd.read_csv('/content/drive/MyDrive/INNHotelsGroup.csv')
+
+"""## Data Overview
+
+- Observations
+- Sanity checks
+"""
+
+# checking first five rows of data
+data.head()
+
+# checking last 5 rows of data
+data.tail()
+
+# checking info of data
+data.info()
+
+# checking shape of data
+data.shape
+
+# checking description of data
+data.describe(include='all')
+
+# identifying null values in data
+data.isnull().sum()
+
+# identifying duplicated data
+data.duplicated().sum()
+
+# identifying number of unique values in all columns
+data.nunique()
+
+# identifying uniques values of no_of_previous_cancellations
+data['no_of_previous_cancellations'].unique()
+
+"""## Exploratory Data Analysis (EDA)
+
+- EDA is an important part of any project involving data.
+- It is important to investigate and understand the data better before building a model with it.
+- A few questions have been mentioned below which will help you approach the analysis in the right manner and generate insights from the data.
+- A thorough analysis of the data, in addition to the questions mentioned below, should be done.
+
+**Leading Questions**:
+1. What are the busiest months in the hotel?
+2. Which market segment do most of the guests come from?
+3. Hotel rates are dynamic and change according to demand and customer demographics. What are the differences in room prices in different market segments?
+4. What percentage of bookings are canceled?
+5. Repeating guests are the guests who stay in the hotel often and are important to brand equity. What percentage of repeating guests cancel?
+6. Many guests have special requirements when booking a hotel room. Do these requirements affect booking cancellation?
+"""
+
+#dropping booking_ID as it contains all unique value
+df = data.drop('Booking_ID', axis=1)
+
+# plotting no_of_adults
+sns.histplot(data=df, x='no_of_adults');
+
+# plotting no_of_children
+sns.histplot(data=df, x='no_of_children');
+
+# plotting no_of_weekend_nights
+sns.histplot(data=df, x='no_of_weekend_nights');
+
+# plotting no_of_week_nights
+sns.boxplot(data=df, x='no_of_week_nights');
+
+# plotting type_of_meal_plan
+sns.histplot(data=df, x='type_of_meal_plan');
+
+# plotting required_car_parking_space
+sns.histplot(data=df, x='required_car_parking_space');
+
+# plotting room_type_reserved
+sns.histplot(data=df, x='room_type_reserved')
+plt.xticks(rotation=90);
+
+# plotting lead_time
+sns.histplot(data=df, x='lead_time');
+
+# plotting arrival_year
+sns.histplot(data=df, x='arrival_year');
+
+# plotting arrival_date
+sns.histplot(data=df, x='arrival_date');
+
+# plotting repeated_guests
+sns.histplot(data=df, x='repeated_guest');
+
+# plotting no_of_previous_cancellations
+sns.histplot(data=df, x='no_of_previous_cancellations');
+
+# plotting no_of_previous_bookings_not_canceled
+sns.histplot(data=df, x='no_of_previous_bookings_not_canceled');
+
+# plotting avg_price_per_room
+sns.histplot(data=df, x='avg_price_per_room');
+
+# total value count of no_of_special_requests
+df['no_of_special_requests'].value_counts()
+
+# plotting no_of_special_requests
+sns.histplot(data=df, x='no_of_special_requests');
+
+# plotting booking_status
+sns.histplot(data=df, x='booking_status');
+
+# plotting arrival_month
+sns.histplot(data=df, x='arrival_month');
+
+"""**Question: What are the busiest months in hotel?**
+
+
+Answer: starting from July, August, September, October and November where October being the most busiest months.
+"""
+
+# plotting market_segment_type
+sns.histplot(data=df, x='market_segment_type');
+
+"""**Question: Which market segment do most of the guests come from?**
+
+
+Answer: Most of guests come from Online Market segment
+"""
+
+# identifying avg_price_per_room on different market_segment_type
+sns.barplot(data=df, x='market_segment_type', y='avg_price_per_room');
+
+"""**Question: Hotel rates are dynamic and change according to demand and customer demographics. What are the differences in room prices in different market segments?**
+
+
+Answer: Online market segment faces maximum price range for rooms in Hotel followed by Aviation and Offline segment. Corporate segment's room price is lower than Offline segment and lowest prices are offered as a complimentary to special guests.
+"""
+
+# Total count of booking status
+df['booking_status'].value_counts()
+
+# calculating the percentage of booking got cancelled
+cancelled_percentage = (df[df['booking_status'] == 'Canceled'].shape[0] / df.shape[0]) * 100
+cancelled_percentage
+
+"""**Question: What percentage of bookings are canceled?**
+
+
+Answer: 32.76% of bookings got canceled
+"""
+
+# Calculating total repeated guests
+repeated = df[df['repeated_guest']==1]
+
+# Calculating the total number cancellation came from repeated guests
+cancelled_repeated_guests = repeated[repeated['booking_status'] == 'Canceled']
+cancelled_percentage_repeated = (cancelled_repeated_guests.shape[0])/repeated.shape[0]*100
+cancelled_percentage_repeated
+
+"""**Question: Repeating guests are the guests who stay in the hotel often and are important to brand equity. What percentage of repeating guests cancel?**
+
+
+Answer: 1.72% of repeating guests canceled bookings in past.
+"""
+
+# plotting comparison of 2 columns
+sns.barplot(data=df, x='no_of_special_requests', y ='booking_status');
+
+# calculating number of special requests received
+special_req = df[df['no_of_special_requests']>0]
+
+special_req.shape
+
+# calculating the cancellation count of special requests customers
+cancellation_special_req = (special_req[special_req['booking_status']=='Canceled'].shape[0])
+cancellation_special_req
+
+# plotting comparison of two columns
+sns.scatterplot(data=special_req, x='no_of_special_requests', y='booking_status');
+
+"""**Question: Many guests have special requirements when booking a hotel room. Do these requirements affect booking cancellation?**
+
+
+Answer: The special requirements is affecting booking cancellation as out of 16498 customers requested special arrangements, 3340 cancelled their bookings.
+"""
+
+# Heatmap of numeric data
+df1 = df.select_dtypes(np.number)
+plt.figure(figsize=(20,10))
+sns.heatmap(df1.corr(), annot=True, cmap='Blues', square=True, vmin=0, vmax=1)
+plt.tight_layout();
+
+# pariplot of numeric data
+sns.pairplot(df)
+plt.tight_layout();
+
+"""## Data Preprocessing
+
+- Missing value treatment (if needed)
+- Feature engineering (if needed)
+- Outlier detection and treatment (if needed)
+- Preparing data for modeling
+- Any other preprocessing steps (if needed)
+
+**Outlier detection and treatment:**
+"""
+
+#Outlier detection and treatment
+# outlier detection using boxplot
+numeric_columns = df.select_dtypes(include=np.number).columns.tolist()
+
+plt.figure(figsize=(15, 12))
+
+for i, variable in enumerate(numeric_columns):
+    plt.subplot(4, 4, i + 1)
+    plt.boxplot(df[variable], whis=1.5)
+    plt.tight_layout()
+    plt.title(variable)
+
+plt.show()
+
+# fixing the ouliers of avg_price_per_room which is greater than 500euros
+# cheking unique values of avg_price_per_room
+df['avg_price_per_room'].unique()
+
+# Value_count of price 0 of room
+df[df["avg_price_per_room"] == 0].value_counts().sum()
+
+# Checking room price higher than 500 euros
+df[df['avg_price_per_room']>= 500].value_counts().sum()
+
+# Checking for avg_price_per_room with 0 value
+df.loc[df["avg_price_per_room"] == 0, "market_segment_type"].value_counts()
+
+# The mean price per room is 103.42 and there is one value which is higher than 500 euros, so we can fix it
+# assiging the avg_price_per_room which is equal to or greater than 500 euros to replace them with upper whisker
+# Calculating the 25th quantile
+Q1 = df["avg_price_per_room"].quantile(0.25)
+
+# Calculating the 75th quantile
+Q3 = df['avg_price_per_room'].quantile(0.75)
+
+# Calculating IQR
+IQR = Q3 - Q1
+
+# Calculating value of upper whisker
+Upper_Whisker = Q3 + 1.5 * IQR
+Upper_Whisker
+
+# replacing the avg_price_per_room value which is greater than 500 with calculated Upper Whisker
+df.loc[df["avg_price_per_room"] >= 500, "avg_price_per_room"] = Upper_Whisker
+
+# plot for avg_price_per_room
+sns.boxplot(data=df, x='avg_price_per_room');
+
+"""# **Data Modelling: **"""
+
+# Splitting data in to train and test set
+X = df.drop('booking_status', axis=1)
+y = df['booking_status']
+
+# adding constant to X
+X = sm.add_constant(X)
+
+# converting categorical variable in to numeric
+X = pd.get_dummies(
+    X,
+    columns=X.select_dtypes(include=['object', 'category']).columns.tolist(),
+    drop_first=True,
+)
+
+# splitting train and test set in to 70:30 ratio
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= 0.30, random_state=1)
+
+# Checking shape of train and test set
+X_train.shape, X_test.shape, y_train.shape, y_test.shape
+
+"""## EDA
+
+- It is a good idea to explore the data once again after manipulating it.
+"""
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_adults');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_adults');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_children');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_children');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_weekend_nights');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_weekend_nights');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_week_nights');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_week_nights');
+
+# plot for train set
+sns.histplot(data=X_train, x='required_car_parking_space');
+
+# plot for test set
+sns.histplot(data=X_test, x='required_car_parking_space');
+
+# plot for train set
+sns.histplot(data=X_train, x='lead_time');
+
+# plot for test set
+sns.histplot(data=X_test, x='lead_time');
+
+# plot for train set
+sns.histplot(data=X_train, x='arrival_year');
+
+# plot for test set
+sns.histplot(data=X_test, x='arrival_year');
+
+# plot for train set
+sns.histplot(data=X_train, x='arrival_month');
+
+# plot for test set
+sns.histplot(data=X_test, x='arrival_month');
+
+# plot for train set
+sns.histplot(data=X_train, x='arrival_date');
+
+# plot for test set
+sns.histplot(data=X_test, x='arrival_date');
+
+# plot for train set
+sns.histplot(data=X_train, x='repeated_guest');
+
+# plot for test set
+sns.histplot(data=X_test, x='repeated_guest');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_previous_cancellations');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_previous_cancellations');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_previous_bookings_not_canceled');
+
+# plot for test set
+sns.histplot(data=X_test, x='no_of_previous_bookings_not_canceled');
+
+# plot for train set
+sns.histplot(data=X_train, x='avg_price_per_room');
+
+# plot for test set
+sns.histplot(data=X_test, x='avg_price_per_room');
+
+# plot for train set
+sns.histplot(data=X_train, x='no_of_special_requests');
+
+# plot for test data
+sns.histplot(data=X_test, x='no_of_special_requests');
+
+"""## Checking Multicollinearity
+
+- In order to make statistical inferences from a logistic regression model, it is important to ensure that there is no multicollinearity present in the data.
+
+# **Before checking Multicollinearlity, lets make logistic model:**
+"""
+
+# Convert all columns to numeric, errors='coerce' will handle non-numerical values by replacing them with NaN
+X_train = X_train.apply(pd.to_numeric, errors='coerce')
+X_test = X_test.apply(pd.to_numeric, errors='coerce')
+
+# Replace NaN values with 0 (or any other strategy as needed)
+X_train = X_train.fillna(0)
+X_test = X_test.fillna(0)
+
+# Explicitly convert all columns in X_train and X_test to float64
+X_train = X_train.astype(float)
+X_test = X_test.astype(float)
+
+# Convert y_train to numeric if it's not already
+# Assuming 'booking_status' is your target and it's categorical
+y_train = pd.to_numeric(y_train.map({'Not_Canceled': 0, 'Canceled': 1})).astype(int)
+y_test = pd.to_numeric(y_test.map({'Not_Canceled': 0, 'Canceled': 1})).astype(int)
+
+# Now fit the model
+logit = sm.Logit(y_train, X_train)
+result = logit.fit()
+print(result.summary())
+
+"""
+
+**Checking for Multicollinearity with VIF:**"""
+
+# we will define a function to check VIF
+def checking_vif(predictors):
+    vif = pd.DataFrame()
+    vif["feature"] = predictors.columns
+
+    # calculating VIF for each feature
+    vif["VIF"] = [
+        variance_inflation_factor(predictors.values, i)
+        for i in range(len(predictors.columns))
+    ]
+    return vif
+
+# putting X_train in function to view vif values
+checking_vif(X_train.astype(float))
+
+"""**We will drop column = 'Market_segment_type_online' and check for vif value.**"""
+
+# dropping the columns having vif values greater than 5
+col_to_drop = ['market_segment_type_Online']
+X_train2 = X_train.loc[:, ~X_train.columns.str.startswith(tuple(col_to_drop))]
+X_test2 = X_test.loc[:, ~X_test.columns.str.startswith(tuple(col_to_drop))]
+
+# checking vif now
+vif = checking_vif(X_train2.astype(float))
+vif
+
+"""**All vif values are under 5 now**
+
+
+**Let's check for p-value and drop the columns which are having p-value above 0.05 **
+"""
+
+# initial list of columns
+cols = X_train2.columns.tolist()
+
+# setting an initial max p-value
+max_p_value = 1
+
+while len(cols) > 0:
+    # defining the train set
+    X_train_aux = X_train2.astype(float)[cols]
+
+    # fitting the model
+    model = sm.Logit(y_train, X_train_aux).fit(disp=False)
+
+    # getting the p-values and the maximum p-value
+    p_values = model.pvalues
+    max_p_value = max(p_values)
+
+    # name of the variable with maximum p-value
+    feature_with_p_max = p_values.idxmax()
+
+    if max_p_value > 0.05:
+        cols.remove(feature_with_p_max)
+    else:
+        break
+
+selected_features = cols
+print(selected_features)
+
+# assigning variable to new selected features data
+X_train3 = X_train2[selected_features]
+X_test3 = X_test2[selected_features]
+
+# checking the summary of new train data after resolving multicollinearity
+logit1 = sm.Logit(y_train, X_train3.astype(float))
+result1 = logit1.fit()
+print(result1.summary())
+
+"""**Conclusion on coefficient:**
+
+1. The booking cancellations is directly proportional to no_of_adults, no_of_children, no_of_weekend_nights, no_of_week_nights, lead_time, arrival_year, no_of_previous_cancellations, avg_price_per_room, type_of_meal_plan_Meal plan 2, type_of_meal_plan_Not Selected, so increase in above variables will lead to increase in chances of booking cancellation
+
+2. The booking cancellations is inversely proportional to required_car_parking_space, arrival_month, repeated_guest, no_of_special_requests, room_type_reserved_Room_Type 2, room_type_reserved_room_type 4, room_type_reserved_Room_type 5, room_type_reserved_room_type_6, room_type_reserved_Room_type 7, market_segment_type_Corporate, market_segment_type_Offline, so increase in above variables will lead to decrease in chances of booking cancellations
+
+**Now, all p_values are below 0.05**
+"""
+
+# defining model_performance_classification_statsmodels to check performances of train and test data
+def model_performance_classification_statsmodels(
+    model, predictors, target, threshold=0.5
+):
+    """
+    Function to compute and print the classification model performance metrics.
+
+    Args:
+        model: A fitted statsmodels model object.
+        predictors: The predictor variables used in the model.
+        target: The target variable.
+        threshold: The probability threshold for classification.
+
+    Returns:
+        A dictionary containing the performance metrics.
+    """
+
+    # Get predicted probabilities
+    pred_probs = model.predict(predictors)
+
+    # Convert probabilities to class predictions using the threshold
+    pred_class = (pred_probs >= threshold).astype(int)
+
+    # Compute performance metrics
+    accuracy = accuracy_score(target, pred_class)
+    precision = precision_score(target, pred_class)
+    recall = recall_score(target, pred_class)
+    f1 = f1_score(target, pred_class)
+    roc_auc = roc_auc_score(target, pred_probs)
+
+    # Create confusion matrix
+    cm = confusion_matrix(target, pred_class)
+
+    # Store metrics in a dictionary
+    metrics = {
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "ROC AUC Score": roc_auc,
+        "Confusion Matrix": cm
+    }
+
+    # Print performance metrics
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
+    print("Recall:", recall)
+    print("F1 Score:", f1)
+    print("ROC AUC Score:", roc_auc)
+    print("Confusion Matrix:")
+    print(cm)
+
+    # Return the metrics dictionary
+    return metrics
+
+# defining model_performance_classification_statsmodels to check performances of train and test data
+def confusion_matrix_statsmodels(model, predictors, target, threshold=0.5):
+    """
+    Creates and prints the confusion matrix for a statsmodels logistic regression model.
+
+    Args:
+        model: A fitted statsmodels model object.
+        predictors: The predictor variables used in the model.
+        target: The target variable.
+        threshold: The probability threshold for classification.
+
+    Returns:
+        None (Prints the confusion matrix)
+    """
+
+    # Get predicted probabilities
+    pred_probs = model.predict(predictors)
+
+    # Convert probabilities to class predictions using the threshold
+    pred_class = (pred_probs >= threshold).astype(int)
+
+    # Create and print confusion matrix
+    cm = confusion_matrix(target, pred_class)
+    print("Confusion Matrix:")
+    print(cm)
+
+"""## Model performance evaluation
+
+**We will calculate odds and odds ratio:**
+"""
+
+# converting coefficients to odds
+odds = np.exp(result1.params)
+
+# finding the percentage change
+perc_change_odds = (np.exp(result1.params) - 1) * 100
+
+# removing limit from number of columns to display
+pd.set_option("display.max_columns", None)
+
+# adding the odds to a dataframe
+pd.DataFrame({"Odds": odds, "Change_odd%": perc_change_odds}, index=X_train3.columns).T
+
+"""**Observartions:**
+
+
+Interpretation of odds ratio in regards to booking cancellation:
+1. no_of_adults: Holding all other features constant, a unit change in no_of_adults will increase 1.11 or 11.48% odds in booking cancellation
+2. no_of_children: Holding all other features constant, a unit change in no_of_children will increase 1.16 or 16.41% odds in booking cancellation
+3. no_of_weekend_nights: Holding all other features constant, a unit change in no_of_weekend_nights will increase 1.11 or 11.46% odds in booking cancellation
+4. no_of_week_nights: Holding all other features constant, a unit change in no_of_week_nights will increase 1.04 or 4.25% odds in booking cancellation
+5. required_car_parking_space: Holding all other features constant, a unit change in variable will decrease 79.70% odds in booking cancellation
+6. lead_time: Holding all other features constant, a unit change in variable will increase 1.01 or 1.58% odds in booking cancellation
+7. arrival_year: Holding all other features constant, a unit change in variable will increase 1.57 or 57.29% odds in booking cancellation
+8. arrival_month: Holding all other features constant, a unit change in variable will increase 0.95 or decrease 4.15% odds in booking cancellation
+9. repeated_guest: Holding all other features constant, a unit change in variable will decrease 93.5% odds in booking cancellation
+10. no_of_previous_cancellation: Holding all other features constant, a unit change in variable will increase 1.25 or 25.70% odds in booking cancellation
+11. avg_price_per_room: Holding all other features constant, a unit change in variable will increase 1.01 or 1.93% odds in booking cancellation
+12. no_of_special_requests: Holding all other features constant, a unit change in variable will decrease 77% odds in booking cancellation
+13. type_of_meal_2: Holding all other features constant, a unit change in variable will increase 1.17 or 17.85% odds in booking cancellation
+14. type_of_meal_not_selected: Holding all other features constant, a unit change in variable will increase 1.33 or 33.10% odds in booking cancellation
+15. room_type_reserved_type_2: Holding all other features constant, a unit change in variable will decrease 29.93% odds in booking cancellation
+16. room_type_4: Holding all other features constant, a unit change in variable will decrease 24.67% odds in booking cancellation
+17. room_type_5: Holding all other features constant, a unit change in variable will decrease 52.10% odds in booking cancellation
+18. room_type_6: Holding all other features constant, a unit change in variable will decrease 61.96% odds in booking cancellation
+19. room_type_7: Holding all other features constant, a unit change in variable will decrease 76.15% odds in booking cancellation
+20. market_segment_type_corporate: Holding all other features constant, a unit change in variable will decrease 54.73% odds in booking cancellation
+21. market_segment_type_offline: Holding all other features constant, a unit change in variable will decrease 83.22% odds in booking cancellation
+
+
+"""
+
+# Checking default training performance
+print("Training performance:")
+log_reg_model_train_perf = model_performance_classification_statsmodels(result1, X_train3.astype(float), y_train)
+log_reg_model_train_perf
+
+# Checking default testing performance
+print("Testing Performance")
+
+log_reg_model_test_perf = model_performance_classification_statsmodels(result1, X_test3.astype(float), y_test)
+log_reg_model_test_perf
+
+"""**ROC curve on Train and Test set:**"""
+
+# Building ROC curve on train set
+logit_roc_auc_train = roc_auc_score(y_train, result1.predict(X_train3.astype(float)))
+fpr, tpr, thresholds = roc_curve(y_train, result1.predict(X_train3.astype(float)))
+plt.figure(figsize=(7, 5))
+plt.plot(fpr, tpr, label="Logistic Regression (area = %0.2f)" % logit_roc_auc_train)
+plt.plot([0, 1], [0, 1], "r--")
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.01])
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver operating characteristic")
+plt.legend(loc="lower right")
+plt.show()
+
+# Building ROC curve on test set
+logit_roc_auc_train = roc_auc_score(y_test, result1.predict(X_test3.astype(float)))
+fpr, tpr, thresholds = roc_curve(y_test, result1.predict(X_test3.astype(float)))
+plt.figure(figsize=(7, 5))
+plt.plot(fpr, tpr, label="Logistic Regression (area = %0.2f)" % logit_roc_auc_train)
+plt.plot([0, 1], [0, 1], "r--")
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.01])
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver operating characteristic")
+plt.legend(loc="lower right")
+plt.show()
+
+# Optimal threshold as per AUC-ROC curve
+# The optimal cut off would be where tpr is high and fpr is low
+fpr, tpr, thresholds = roc_curve(y_train, result1.predict(X_train3.astype(float)))
+
+optimal_idx = np.argmax(tpr - fpr)
+optimal_threshold_auc_roc = thresholds[optimal_idx]
+print(optimal_threshold_auc_roc)
+
+# defining model_performance_classification_statsmodels to check performances of train and test data
+def confusion_matrix_statsmodels(model, predictors, target, threshold=0.5):
+    """
+    Creates and prints the confusion matrix for a statsmodels logistic regression model.
+
+    Args:
+        model: A fitted statsmodels model object.
+        predictors: The predictor variables used in the model.
+        target: The target variable.
+        threshold: The probability threshold for classification.
+
+    Returns:
+        None (Prints the confusion matrix)
+    """
+
+    # Get predicted probabilities
+    pred_probs = model.predict(predictors)
+
+    # Convert probabilities to class predictions using the threshold
+    pred_class = (pred_probs >= threshold).astype(int)
+
+    # Create and print confusion matrix
+    cm = confusion_matrix(target, pred_class)
+    print("Confusion Matrix:")
+    print(cm)
+
+# checking training model performance after getting threshold = 0.37
+log_reg_model_train_perf_threshold_auc_roc = model_performance_classification_statsmodels(
+    result1, X_train3, y_train, threshold=optimal_threshold_auc_roc
+)
+print("Training performance:")
+log_reg_model_train_perf_threshold_auc_roc
+
+# checking testing model performance after getting threshold = 0.37
+log_reg_model_test_perf_threshold_auc_roc = model_performance_classification_statsmodels(
+    result1, X_test3.astype(float), y_test, threshold=optimal_threshold_auc_roc
+)
+print("Test performance:")
+log_reg_model_test_perf_threshold_auc_roc
+
+"""**Let's use precision curve to see if we find better threshold**"""
+
+# plotting precision-recall curve on training set
+# predicting the value from X_train
+y_pred_train = result1.predict(X_train3.astype(float))
+prec, rec, tre = precision_recall_curve(y_train, y_pred_train) # calling the function for precision recall curve
+
+# defining plot features
+def plot_prec_recall_vs_tresh(precisions, recalls, thresholds):
+    plt.plot(thresholds, precisions[:-1], "b--", label="precision")
+    plt.plot(thresholds, recalls[:-1], "g--", label="recall")
+    plt.xlabel("Threshold")
+    plt.legend(loc="upper left")
+    plt.ylim([0, 1])
+
+
+plt.figure(figsize=(10, 7))
+plot_prec_recall_vs_tresh(prec, rec, tre)
+plt.show()
+
+# setting optimal threshold from the above precision-recall curve
+optimal_threshold_curve = 0.42
+
+# defining model_performance_classification_statsmodels to check performances of train and test data
+def confusion_matrix_statsmodels(model, predictors, target, threshold=0.5):
+    """
+    Creates and prints the confusion matrix for a statsmodels logistic regression model.
+
+    Args:
+        model: A fitted statsmodels model object.
+        predictors: The predictor variables used in the model.
+        target: The target variable.
+        threshold: The probability threshold for classification.
+
+    Returns:
+        None (Prints the confusion matrix)
+    """
+
+    # Get predicted probabilities
+    pred_probs = model.predict(predictors)
+
+    # Convert probabilities to class predictions using the threshold
+    pred_class = (pred_probs >= threshold).astype(int)
+
+    # Create and print confusion matrix
+    cm = confusion_matrix(target, pred_class)
+    print("Confusion Matrix:")
+    print(cm)
+
+# Checking training model performance from optimal_threshold_curve value = 0.42
+log_reg_model_train_perf_threshold_curve = model_performance_classification_statsmodels(
+    result1, X_train3.astype(float), y_train, threshold=optimal_threshold_curve
+)
+print("Training performance:")
+log_reg_model_train_perf_threshold_curve
+
+# Checking testing model performance from optimal_threshold_curve value = 0.42
+log_reg_model_test_perf = model_performance_classification_statsmodels(result1, X_test3.astype(float), y_test, threshold=optimal_threshold_curve) ## Complete the code to check performance on X_test1 and y_test
+
+print("Test performance:")
+log_reg_model_test_perf
+
+"""**ROC curve on test set:**"""
+
+logit_roc_auc_train = roc_auc_score(y_test, result1.predict(X_test3.astype(float)))
+fpr, tpr, thresholds = roc_curve(y_test, result1.predict(X_test3.astype(float)))
+plt.figure(figsize=(7, 5))
+plt.plot(fpr, tpr, label="Logistic Regression (area = %0.2f)" % logit_roc_auc_train)
+plt.plot([0, 1], [0, 1], "r--")
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.01])
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver operating characteristic")
+plt.legend(loc="lower right")
+plt.show()
+
+"""**Comapring all the values and choosing the best from default threshold, 0.37 threshold and 0.42 threshold:**"""
+
+# defining model_performance_classification_statsmodels to check performances of train and test data
+def model_performance_classification_statsmodels(
+    model, predictors, target, threshold=0.5
+):
+    """
+    Function to compute and print the classification model performance metrics.
+
+    Args:
+        model: A fitted statsmodels model object.
+        predictors: The predictor variables used in the model.
+        target: The target variable.
+        threshold: The probability threshold for classification.
+
+    Returns:
+        A dictionary containing the performance metrics.
+    """
+
+    # Get predicted probabilities
+    pred_probs = model.predict(predictors)
+
+    # Convert probabilities to class predictions using the threshold
+    pred_class = (pred_probs >= threshold).astype(int)
+
+    # Compute performance metrics
+    accuracy = accuracy_score(target, pred_class)
+    precision = precision_score(target, pred_class)
+    recall = recall_score(target, pred_class)
+    f1 = f1_score(target, pred_class)
+    roc_auc = roc_auc_score(target, pred_probs)
+
+    # Create confusion matrix
+    cm = confusion_matrix(target, pred_class)
+
+    # Store metrics in a dictionary
+    metrics = {
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "ROC AUC Score": roc_auc,
+        "Confusion Matrix": cm
+    }
+
+    # Print performance metrics
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
+    print("Recall:", recall)
+    print("F1 Score:", f1)
+    print("ROC AUC Score:", roc_auc)
+    print("Confusion Matrix:")
+    print(cm)
+
+    # Return the metrics dictionary
+    return metrics
+
+# training performance comparison
+
+# Call the function and assign the returned dictionaries
+log_reg_model_train_perf = model_performance_classification_statsmodels(result1, X_train3.astype(float), y_train)
+log_reg_model_train_perf_threshold_auc_roc = model_performance_classification_statsmodels(
+    result1, X_train3.astype(float), y_train, threshold=optimal_threshold_auc_roc
+)
+log_reg_model_train_perf_threshold_curve = model_performance_classification_statsmodels(
+    result1, X_train3.astype(float), y_train, threshold=optimal_threshold_curve
+)
+
+# Convert dictionaries to DataFrames for concatenation, excluding Confusion Matrix
+log_reg_model_train_perf_df = pd.DataFrame({k: v for k, v in log_reg_model_train_perf.items() if k != 'Confusion Matrix'}, index=[0])
+log_reg_model_train_perf_threshold_auc_roc_df = pd.DataFrame({k: v for k, v in log_reg_model_train_perf_threshold_auc_roc.items() if k != 'Confusion Matrix'}, index=[0])
+log_reg_model_train_perf_threshold_curve_df = pd.DataFrame({k: v for k, v in log_reg_model_train_perf_threshold_curve.items() if k != 'Confusion Matrix'}, index=[0])
+
+
+models_train_comp_df = pd.concat(
+    [
+        log_reg_model_train_perf_df,
+        log_reg_model_train_perf_threshold_auc_roc_df,
+        log_reg_model_train_perf_threshold_curve_df,
+    ],
+    axis=1,
+    keys=[
+        "Logistic Regression-default Threshold",
+        "Logistic Regression-0.37 Threshold",
+        "Logistic Regression-0.42 Threshold",
+    ],  # Specify keys for each DataFrame
+)
+
+
+# Display the comparison of training performance
+print("Training performance comparison:")
+print(models_train_comp_df)
+
+"""Observations:
+
+1. Logistic Regression - default Threshold(0.5):
+Accuracy: 0.8053,
+Precision: 0.7390,
+Recall: 0.6324,
+F1 Score: 0.6815,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 15161, False Positives: 1868, False Negatives: 3074, True Negatives: 5289)
+
+2. Logistic Regression - 0.37 Threshold:
+Accuracy: 0.7926,
+Precision: 0.6679,
+Recall: 0.7365,
+F1 Score: 0.7006,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 13967, False Positives: 3062, False Negatives: 2203, True Negatives: 6160)
+
+3. Logistic Regression - 0.42 Threshold:
+Accuracy: 0.8012,
+Precision: 0.6979,
+Recall: 0.6992,
+F1 Score: 0.6986,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 14498, False Positives: 2531, False Negatives: 2515, True Negatives: 5848)
+
+"""
+
+# testing performance comparison
+
+# Call the function and assign the returned dictionaries
+log_reg_model_test_perf = model_performance_classification_statsmodels(result1, X_test3.astype(float), y_test) # Assigning the output to log_reg_model_test_perf
+log_reg_model_test_perf_threshold_auc_roc = model_performance_classification_statsmodels( # Assigning output to log_reg_model_test_perf_threshold_auc_roc
+    result1, X_test3.astype(float), y_test, threshold=optimal_threshold_auc_roc
+)
+log_reg_model_test_perf_threshold_curve = model_performance_classification_statsmodels( # Assigning output to log_reg_model_test_perf_threshold_curve
+    result1, X_test3.astype(float), y_test, threshold=optimal_threshold_curve
+)
+
+# Convert dictionaries to DataFrames for concatenation, excluding Confusion Matrix
+log_reg_model_test_perf_df = pd.DataFrame({k: v for k, v in log_reg_model_test_perf.items() if k != 'Confusion Matrix'}, index=[0])
+log_reg_model_test_perf_threshold_auc_roc_df = pd.DataFrame({k: v for k, v in log_reg_model_test_perf_threshold_auc_roc.items() if k != 'Confusion Matrix'}, index=[0]) # Using log_reg_model_test_perf_threshold_auc_roc
+log_reg_model_test_perf_threshold_curve_df = pd.DataFrame({k: v for k, v in log_reg_model_test_perf_threshold_curve.items() if k != 'Confusion Matrix'}, index=[0]) # Using log_reg_model_test_perf_threshold_curve
+
+
+models_test_comp_df = pd.concat(
+    [
+        log_reg_model_test_perf_df,
+        log_reg_model_test_perf_threshold_auc_roc_df,
+        log_reg_model_test_perf_threshold_curve_df,
+    ],
+    axis=1,
+    keys=[
+        "Logistic Regression-default Threshold",
+        "Logistic Regression-0.37 Threshold",
+        "Logistic Regression-0.42 Threshold",
+    ],  # Specify keys for each DataFrame
+)
+
+
+# Display the comparison of training performance
+print("Testing performance comparison:")
+print(models_test_comp_df)
+
+"""**Observations:**
+
+
+1. Logistic Regression - default Threshold:
+Accuracy: 0.8046,
+Precision: 0.7290,
+Recall: 0.6308,
+F1 Score: 0.6764,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6535, False Positives: 826, False Negatives: 1300, True Negatives: 2222)
+
+2. Logistic Regression - 0.37 Threshold:
+Accuracy: 0.7955,
+Precision: 0.6657,
+Recall: 0.7396,
+F1 Score: 0.7007,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6053, False Positives: 1308, False Negatives: 917, True Negatives: 2605)
+
+3. Logistic Regression - 0.42 Threshold:
+Accuracy: 0.8036,
+Precision: 0.6938,
+Recall: 0.7038,
+F1 Score: 0.6988,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6267, False Positives: 1094, False Negatives: 1043, True Negatives: 2479)
+
+# **Conclusion: **
+
+Observations for train:
+
+1. Logistic Regression - default Threshold(0.5):
+Accuracy: 0.8053,
+Precision: 0.7390,
+Recall: 0.6324,
+F1 Score: 0.6815,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 15161, False Positives: 1868, False Negatives: 3074, True Negatives: 5289)
+
+2. Logistic Regression - 0.37 Threshold:
+Accuracy: 0.7926,
+Precision: 0.6679,
+Recall: 0.7365,
+F1 Score: 0.7006,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 13967, False Positives: 3062, False Negatives: 2203, True Negatives: 6160)
+
+3. Logistic Regression - 0.42 Threshold:
+Accuracy: 0.8012,
+Precision: 0.6979,
+Recall: 0.6992,
+F1 Score: 0.6986,
+ROC AUC Score: 0.8626
+Confusion Matrix: (True positives: 14498, False Positives: 2531, False Negatives: 2515, True Negatives: 5848)
+
+
+Observations for test:
+
+
+1. Logistic Regression - default Threshold:
+Accuracy: 0.8046,
+Precision: 0.7290,
+Recall: 0.6308,
+F1 Score: 0.6764,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6535, False Positives: 826, False Negatives: 1300, True Negatives: 2222)
+
+2. Logistic Regression - 0.37 Threshold:
+Accuracy: 0.7955,
+Precision: 0.6657,
+Recall: 0.7396,
+F1 Score: 0.7007,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6053, False Positives: 1308, False Negatives: 917, True Negatives: 2605)
+
+3. Logistic Regression - 0.42 Threshold:
+Accuracy: 0.8036,
+Precision: 0.6938,
+Recall: 0.7038,
+F1 Score: 0.6988,
+ROC AUC Score: 0.8637
+Confusion Matrix: (True positives: 6267, False Positives: 1094, False Negatives: 1043, True Negatives: 2479)
+
+
+I think all the three models are good fit according to different specifications. 0.5 threshold model will give highest true positives and true negatives. 0.37 threshold model will give lowest false negatives. 0.42 threshold model will generate lesse false positives compare to 0.37 threshold model.
+
+
+Hence, looking into acc, recall, f1, precision scores, it seems like 0.42 threshold model has well balanced performance score.
+
+## Building a Decision Tree model
+"""
+
+# splitting train-test set for building decision tree
+X = df.drop(['booking_status'], axis=1)
+y = df['booking_status']
+
+X = pd.get_dummies(X, drop_first=True)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
+
+# Cheking shape of all 4 sets
+X_train.shape, X_test.shape, y_train.shape, y_test.shape
+
+# checking unique value of y_train
+y_train.unique()
+
+# checking unique values of y_test
+y_test.unique()
+
+# restructuring y_train and y_test
+y_train = y_train.map({'Not_Canceled':0, 'Canceled':1})
+y_test = y_test.map({'Not_Canceled':0, 'Canceled':1})
+
+# defining a function to compute different metrics to check performance of a classification model built using sklearn
+def model_performance_classification_sklearn(model, predictors, target):
+    """
+    Function to compute different metrics to check classification model performance
+
+    model: classifier
+    predictors: independent variables
+    target: dependent variable
+    """
+
+    # predicting using the independent variables
+    pred = model.predict(predictors)
+
+    acc = accuracy_score(target, pred)  # to compute Accuracy
+    recall = recall_score(target, pred)  # to compute Recall
+    precision = precision_score(target, pred)  # to compute Precision
+    f1 = f1_score(target, pred)  # to compute F1-score
+
+    # creating a dataframe of metrics
+    df_perf = pd.DataFrame(
+        {"Accuracy": acc, "Recall": recall, "Precision": precision, "F1": f1,},
+        index=[0],
+    )
+
+    return df_perf
+
+# defining function confusion_matrix_sklearn
+def confusion_matrix_sklearn(model, predictors, target):
+    """
+    To plot the confusion_matrix with percentages
+
+    model: classifier
+    predictors: independent variables
+    target: dependent variable
+    """
+    y_pred = model.predict(predictors)
+    cm = confusion_matrix(target, y_pred)
+    labels = np.asarray(
+        [
+            ["{0:0.0f}".format(item) + "\n{0:.2%}".format(item / cm.flatten().sum())]
+            for item in cm.flatten()
+        ]
+    ).reshape(2, 2)
+
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(cm, annot=labels, fmt="")
+    plt.ylabel("True label")
+    plt.xlabel("Predicted label")
+
+# fitting training model in decision tree classifier
+model_dt = DecisionTreeClassifier(random_state=1)
+model_dt.fit(X_train.astype(float), y_train)
+
+# checking confusion matrix of model
+confusion_matrix_sklearn(model_dt, X_train.astype(float), y_train)
+
+# checking performance of training model
+decision_tree_perf_train = model_performance_classification_sklearn(model_dt, X_train.astype(float), y_train)
+decision_tree_perf_train
+
+"""**Performance check on test data:**"""
+
+# Confusion matrix of test set
+confusion_matrix_sklearn(model_dt, X_test.astype(float), y_test)
+
+# checking performance of test set
+decision_tree_perf_test = model_performance_classification_sklearn(model_dt, X_test.astype(float), y_test)
+decision_tree_perf_test
+
+# Checking important features of train set
+feature_names = list(X_train.columns)
+importances = model_dt.feature_importances_
+indices = np.argsort(importances)
+
+plt.figure(figsize=(8, 8))
+plt.title("Feature Importances")
+plt.barh(range(len(indices)), importances[indices], color="violet", align="center")
+plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
+plt.xlabel("Relative Importance")
+plt.show()
+
+"""**Observations:**
+
+
+From Important features from original model, to predict booking cancellation, lead time variable plays most important role followed by avg_price_per_room, market_segment_online, arrival_date etc.
+
+## Do we need to prune the tree?
+
+## **Yes, we will start with pre-pruning the tree:**
+"""
+
+# pre-pruning decision tree
+# Choose the type of classifier.
+estimator = DecisionTreeClassifier(random_state=1, class_weight="balanced")
+
+# Grid of parameters to choose from
+parameters = {
+    "max_depth": np.arange(2, 7, 2),
+    "max_leaf_nodes": [50, 75, 150, 250],
+    "min_samples_split": [10, 30, 50, 70],
+}
+
+# Type of scoring used to compare parameter combinations
+acc_scorer = make_scorer(f1_score)
+
+# Run the grid search
+grid_obj = GridSearchCV(estimator, parameters, scoring=acc_scorer, cv=5)
+grid_obj = grid_obj.fit(X_train, y_train)
+
+# Set the clf to the best combination of parameters
+estimator = grid_obj.best_estimator_
+
+# Fit the best algorithm to the data.
+estimator.fit(X_train, y_train)
+
+# confusion matrix of pre-pruned tree of train set
+confusion_matrix_sklearn(estimator, X_train, y_train)
+
+# performance of pre-pruned tree of train set
+decision_tree_tune_perf_train = model_performance_classification_sklearn(estimator, X_train.astype(float), y_train)
+decision_tree_tune_perf_train
+
+# confusion matrix of pre-pruned tree of test set
+confusion_matrix_sklearn(estimator, X_test, y_test)
+
+# performance of pre-pruned tree of test set
+decision_tree_tune_perf_test = model_performance_classification_sklearn(estimator, X_test.astype(float), y_test)
+decision_tree_tune_perf_test
+
+# checking estimator score of train and test data
+print(estimator.score(X_train, y_train))
+print(estimator.score(X_test, y_test))
+
+# Using recall_score directly, providing y_true and y_pred
+recall_train = recall_score(y_train, estimator.predict(X_train))
+recall_test = recall_score(y_test, estimator.predict(X_test))
+print("Recall on training set:", recall_train)
+print("Recall on testing set:", recall_test)
+
+"""## **Visualizing Pre-pruned Tree and checking important features:**"""
+
+# visual representation of pre-pruned tree
+plt.figure(figsize=(20, 10))
+out = tree.plot_tree(
+    estimator,
+    feature_names=feature_names,
+    filled=True,
+    fontsize=9,
+    node_ids=False,
+    class_names=None,
+)
+# below code will add arrows to the decision tree split if they are missing
+for o in out:
+    arrow = o.arrow_patch
+    if arrow is not None:
+        arrow.set_edgecolor("black")
+        arrow.set_linewidth(1)
+plt.show()
+
+# Text report showing the rules of a decision tree -
+print(tree.export_text(estimator, feature_names=feature_names, show_weights=True))
+
+# important features of pre-pruned tree
+
+importances = estimator.feature_importances_
+indices = np.argsort(importances)
+
+plt.figure(figsize=(8, 8))
+plt.title("Feature Importances")
+plt.barh(range(len(indices)), importances[indices], color="violet", align="center")
+plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
+plt.xlabel("Relative Importance")
+plt.show()
+
+"""**Observation:**
+
+From important features of pre-pruned model, again lead time plays major role followed by market_segment_type_online, no_of_special_requests, avg_price_per_room etc.
+
+## **Let's try post pruning through cost complexity pruning:**
+"""
+
+# assigning clf with decision tree classifier
+# through cost complexity, visualizing impurities of nodes
+clf = DecisionTreeClassifier(random_state=1, class_weight="balanced")
+path = clf.cost_complexity_pruning_path(X_train, y_train)
+ccp_alphas, impurities = abs(path.ccp_alphas), path.impurities
+
+# assigning individual dataframe to path
+pd.DataFrame(path)
+
+# plotting ccp_alpha vs impurities
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(ccp_alphas[:-1], impurities[:-1], marker="o", drawstyle="steps-post")
+ax.set_xlabel("effective alpha")
+ax.set_ylabel("total impurity of leaves")
+ax.set_title("Total Impurity vs effective alpha for training set")
+plt.show()
+
+"""**Observation:** higher the effective alpha, higher will be the impurity
+
+Train decision tree using effective alpha. The last ccp_alpha of the tree is one which has pruned whole tree, leaving the tree [:-1] to one node
+"""
+
+# fitting X_train data in clf to determine alpha value
+clfs = []
+for ccp_alpha in ccp_alphas:
+    clf = DecisionTreeClassifier(
+        random_state=1, ccp_alpha=ccp_alpha, class_weight="balanced"
+    )
+    clf.fit(X_train.astype(float), y_train)
+    clfs.append(clf)
+print(
+    "Number of nodes in the last tree is: {} with ccp_alpha: {}".format(
+        clfs[-1].tree_.node_count, ccp_alphas[-1]
+    )
+)
+
+# plotting no of nodes vs alpha graph
+# plotting depth of tree vs alpha graph
+clfs = clfs[:-1]
+ccp_alphas = ccp_alphas[:-1]
+
+node_counts = [clf.tree_.node_count for clf in clfs]
+depth = [clf.tree_.max_depth for clf in clfs]
+fig, ax = plt.subplots(2, 1, figsize=(10, 7))
+ax[0].plot(ccp_alphas, node_counts, marker="o", drawstyle="steps-post")
+ax[0].set_xlabel("alpha")
+ax[0].set_ylabel("number of nodes")
+ax[0].set_title("Number of nodes vs alpha")
+ax[1].plot(ccp_alphas, depth, marker="o", drawstyle="steps-post")
+ax[1].set_xlabel("alpha")
+ax[1].set_ylabel("depth of tree")
+ax[1].set_title("Depth vs alpha")
+fig.tight_layout()
+
+"""**Observations: **
+
+Higher alpha values means lower depth and numner of nodes.
+
+F1 score vs alpha for train and test set:
+"""
+
+# Calculating the F1 score for train and test set
+f1_train = []
+for clf in clfs:
+    pred_train = clf.predict(X_train.astype(float))
+    values_train = f1_score(y_train, pred_train)
+    f1_train.append(values_train)
+
+f1_test = []
+for clf in clfs:
+    pred_test = clf.predict(X_test.astype(float))
+    values_test = f1_score(y_test, pred_test)
+    f1_test.append(values_test)
+
+# plotting graph of F1 score vs alpha for train and test data
+fig, ax = plt.subplots(figsize=(15, 5))
+ax.set_xlabel("alpha")
+ax.set_ylabel("F1 Score")
+ax.set_title("F1 Score vs alpha for training and testing sets")
+ax.plot(ccp_alphas, f1_train, marker="o", label="train", drawstyle="steps-post")
+ax.plot(ccp_alphas, f1_test, marker="o", label="test", drawstyle="steps-post")
+ax.legend()
+plt.show()
+
+# assigning best model from above graph with best F1 score and lower alpha for test set
+index_best_model = np.argmax(f1_test)
+best_model = clfs[index_best_model]
+print(best_model)
+
+"""**Checking performance on training and testing set:**"""
+
+# confusion model for train set of best model
+confusion_matrix_sklearn(best_model, X_train.astype(float), y_train)
+
+# performance of train data of best model
+decision_tree_post_perf_train = model_performance_classification_sklearn(
+    best_model, X_train.astype(float), y_train
+)
+decision_tree_post_perf_train
+
+# confusion matrix of best model of test set
+confusion_matrix_sklearn(best_model, X_test.astype(float), y_test)
+
+# performance of best model of test set
+decision_tree_post_perf_test = model_performance_classification_sklearn(best_model, X_test.astype(float), y_test)
+decision_tree_post_perf_test
+
+# plotting tree of best model
+plt.figure(figsize=(20, 10))
+
+out = tree.plot_tree(
+    best_model,
+    feature_names=feature_names,
+    filled=True,
+    fontsize=9,
+    node_ids=False,
+    class_names=None,
+)
+for o in out:
+    arrow = o.arrow_patch
+    if arrow is not None:
+        arrow.set_edgecolor("black")
+        arrow.set_linewidth(1)
+plt.show()
+
+# Text report showing the rules of a decision tree
+
+print(tree.export_text(best_model, feature_names=feature_names, show_weights=True))
+
+# important features of best model tree
+importances = best_model.feature_importances_
+indices = np.argsort(importances)
+
+plt.figure(figsize=(12, 12))
+plt.title("Feature Importances")
+plt.barh(range(len(indices)), importances[indices], color="violet", align="center")
+plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
+plt.xlabel("Relative Importance")
+plt.show()
+
+"""**Obervations: **
+
+From important features from post pruned model to predict booking cancellation, lead time plays major role followed by market_segment_online, avg_price_pre_room, no_of_special_requests, arrival_month, arrival_date etc.
+
+## Model Performance Comparison and Conclusions
+"""
+
+# training performance comparison of decision tree
+
+models_train_comp_df = pd.concat(
+    [
+        decision_tree_perf_train.T,
+        decision_tree_tune_perf_train.T,
+        decision_tree_post_perf_train.T,
+    ],
+    axis=1,
+)
+models_train_comp_df.columns = [
+    "Decision Tree sklearn",
+    "Decision Tree (Pre-Pruning)",
+    "Decision Tree (Post-Pruning)",
+]
+print("Training performance comparison:")
+models_train_comp_df
+
+# training performance comparison of decision tree
+
+models_test_comp_df = pd.concat(
+    [
+        decision_tree_perf_test.T,
+        decision_tree_tune_perf_test.T,
+        decision_tree_post_perf_test.T,
+    ],
+    axis=1,
+)
+models_test_comp_df.columns = [
+    "Decision Tree sklearn",
+    "Decision Tree (Pre-Pruning)",
+    "Decision Tree (Post-Pruning)",
+]
+print("Training performance comparison:")
+models_test_comp_df
+
+"""**Observations:**
+
+As per the results, post-pruning showed best performance overall with high F1 score as well as better accuracy, recall and precision score.
+
+## Actionable Insights and Recommendations
+
+- What profitable policies for cancellations and refunds can the hotel adopt?
+- What other recommedations would you suggest to the hotel?
+
+**Profitable policies for cancellations and refunds to adopt as well as other recommendations: **
+
+1. **Targeted marketing:** With increase in no_of_adults, no_of_weekend_nights, no_of_week_nights, lead_time may suggest higher cancellation risk, offering discounts or additional perks such as flexible cancellation policies, meal offering could retain such bookings
+2. **Discounts for longer lead time and stay:** Based on higher lead_time or longer length of stay, to incentivize guests to commit by adjusting pricing strategy.
+3. **Collecting Deposits:** Implementing pre-booking strategies, which means collecting deposits while booking can lower the risk of cancellations
+4. **Loyalty programs for repeated guests:** Repeated guests are less likely to cancel their bookings, creating loyalty programs or offering exclusive offers could increase retention rates.
+5. **Discounts for corpotate guests:** Corporate segments tend to cancel less, to attract corporate clients, offering bulk booking discounts, conference rooms, business amenities could prove effective
+6. **Clear advertisement:** If required_car_parking_space is important for guests, ensuring that this is clearly advertised on website and other booking platforms might decrease cancellation
+7. **Packages for specific room types:** Guests selecting specific room types (2,4,5,6,7) might have higher commitment to booking, offering packages that focus on there popular room types could help boost conversion rates.
+8. **Reminder emails:** Sending reminder emails or notification as the booking date approaches to reaffirm their commitment.
+9. **Online booking perks:** While online booking are more common, offering special perks such as discounts for non-refundable bookings or loyalty points for online reservations can encourage customers to follow their booking
+10. **Offer price flexibility:** For higher priced rooms, offering flexible cancellation policies such as free cancellations upto 48hr before check-in date could decrease cancellations.
+11. **Special requests adjustments:** Consider introducing a confirmation step for special requests during the booking process to ensure the hotel can fulfil those requests. And if special requests are not immediately available, offer alternative option or discounted services to prevent cancellations
+12. **Early bird rates:** offering early bird rates for customers who book months in advance, locking them with special pricing and minimizing the chance of last minute cancellations
+13. **Non-refundable pricing on high demand:** Non-refundable pricing for customers who are sure about their bookings during high demend period such as August, September and October.
+14. **Cancellation fee:** Implementing graduated cancellation fee structure based on how close the cancellation is to the arrival date.
+"""
